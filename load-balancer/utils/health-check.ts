@@ -3,6 +3,9 @@ import { IBackendServerDetails } from '../backend-server-details';
 import { BEServerHealth } from './enums';
 import { Config } from './config';
 import { BEPingHttpClient } from './http-client';
+import cmd from 'node-run-cmd';
+import { exec } from "child_process";
+import { ExecCMD } from './exec-cmd';
 
 const CONFIG = Config.getConfig();
 
@@ -158,6 +161,25 @@ export class HealthCheck {
         catch (error) {
             console.log(`\t\t[Logger] Not able to triggerAllBEFailureAlert`)
             return;
+        }
+    }
+
+    /**
+     * Tries to restart a Backend Server for self Healing
+     */
+    public static async selfHealBEServer(server: IBackendServerDetails) {
+        console.log(`\t[Logger] selfHealBEServer - ${server.url}`);
+
+        try {
+            server.selfHealAttempts++;
+            const port = server.url.substring(server.url.lastIndexOf(':') + 1);
+            await ExecCMD(`cd ${global.__appBaseDir} && npx ts-node be.index.ts ${port}`);
+            
+            return true;
+        }
+        catch (error) {
+            console.log('\t[ERROR] selfHealBEServer - Command failed to run with error: ', error);
+            return false;
         }
     }
 

@@ -100,13 +100,14 @@ export class LBServer implements ILBServer {
         app.use(express.json());
 
         app.get('/', async (req, res) => {
-            let backendServer = this.getBackendServer();
-
             if (this.healthyServers.length === 0) {
                 return res.sendStatus(500);
             }
 
+            let backendServer: IBackendServerDetails;
+
             try {
+                backendServer = this.getBackendServer();
                 console.log(`\t[BEStart]  -  ${backendServer.url}`);
 
                 const response = await BEHttpClient.get(backendServer.url, {
@@ -135,7 +136,7 @@ export class LBServer implements ILBServer {
                 return res.status(200).send(response.data);
             }
             catch (error) {
-                console.log(`\t[BEError]  -  ${backendServer.url}`);
+                console.log(`\t[BEError]  -  ${backendServer!?.url ?? 'getBackendServer'}`);
                 console.error(error);
                 res.sendStatus(500);
                 return;

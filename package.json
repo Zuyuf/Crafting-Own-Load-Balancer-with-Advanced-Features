@@ -5,8 +5,8 @@
     "main": "index.js",
     "scripts": {
         "start": "SET PORT=80 && node load-balancer.js",
-        "dev": "npx ts-node lb.index.ts 80",
-        "be": "npx ts-node ./src/be.index.ts"
+        "dev:lb": "npx ts-node --files lb.index.ts 80",
+        "dev:be": "npx ts-node be.index.ts"
     },
     "repository": {
         "type": "git",
@@ -28,6 +28,7 @@
         "http-proxy-middleware": "^2.0.6",
         "https": "^1.0.0",
         "joi": "^17.11.0",
+        "node-run-cmd": "^1.0.1",
         "ts-node": "^10.9.1"
     },
     "devDependencies": {

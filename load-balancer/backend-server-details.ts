@@ -1,6 +1,7 @@
 import { BEPingHttpClient } from "./utils/http-client";
 import { BEServerHealth } from "./utils/enums";
 import { Config } from './utils/config';
+import { HealthCheck } from "./utils/health-check";
 
 const CONFIG = Config.getConfig();
 
@@ -16,6 +17,8 @@ export interface IBackendServerDetails {
      * used for weighted round robin
      */
     serverWeight: number;
+
+    selfHealAttempts: number;
 
     /**
      * increments total requests sent to this server
@@ -48,6 +51,7 @@ export class BackendServerDetails implements IBackendServerDetails {
     
     pingUrl: string;
     serverWeight: number;
+    selfHealAttempts: number;
     private failStreak: number;
     private status: BEServerHealth;
 
@@ -62,6 +66,7 @@ export class BackendServerDetails implements IBackendServerDetails {
     ) {
         this.url = url;
         this.failStreak = 0;
+        this.selfHealAttempts = 0;
         this.requestsServedCount = 0;
         this.serverWeight = serverWeight;
         this.totalRequestsServedCount = 0;
@@ -76,7 +81,7 @@ export class BackendServerDetails implements IBackendServerDetails {
         if (status === BEServerHealth.UNHEALTHY) {
             this.failStreak++;
             this.triggerBEFailureAlert();
-            console.log(`\t[Logger] setStatus UNHEALTHY - ${this.url} - ${this.failStreak}`);
+            console.log(`\t[Logger] setStatus UNHEALTHY - ${this.url} - failStreak=${this.failStreak}`);
         }
         else {
             this.failStreak = 0;
@@ -117,7 +122,14 @@ export class BackendServerDetails implements IBackendServerDetails {
 
     public async triggerBEFailureAlert() {
         if (this.failStreak % CONFIG.alert_on_be_failure_streak !== 0) return;
-        console.log(`\t\t[Logger] triggerBEFailureAlert - ${this.url}`);
+
+        const didHeal = await HealthCheck.selfHealBEServer(this);
+        if (didHeal) {
+            this.selfHealAttempts = 0;
+            return;
+        };
+        
+        console.log(`\t[Logger] triggerBEFailureAlert - ${this.url}`);
         
         try {
             const response = await BEPingHttpClient.post(CONFIG.send_alert_webhook, {
@@ -125,6 +137,7 @@ export class BackendServerDetails implements IBackendServerDetails {
                 type: 'BE_DOWN',
                 status: this.status,
                 failStreak: this.failStreak,
+                selfHealAttempts: this.selfHealAttempts,
                 requestsServedCount: this.requestsServedCount,
                 totalRequestsServedCount: this.totalRequestsServedCount,
             });
@@ -132,7 +145,7 @@ export class BackendServerDetails implements IBackendServerDetails {
             return response.status;
         }
         catch (error) {
-            console.log(`\t\t[Logger] Not able to trigger BEFailureAlert`)
+            console.log(`\t[Logger] Not able to trigger BEFailureAlert`)
             return;
         }
     }
