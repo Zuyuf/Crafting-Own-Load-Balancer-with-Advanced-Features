@@ -7,6 +7,9 @@ import { BackendServerDetails, IBackendServerDetails } from "./backend-server-de
 import { ILbAlgorithm } from './lb-algos/lb-algo.interface';
 import { LbAlgorithmFactory } from './lb-algos/lb-algos';
 import { HealthCheck } from './utils/health-check';
+import { Config } from './utils/config';
+
+const CONFIG = Config.getConfig();
 
 //
 
@@ -31,22 +34,18 @@ export interface ILBServer {
 }
 
 export class LBServer implements ILBServer {
-    algoType: LbAlgorithm;
-    lbAlgo: ILbAlgorithm;
-
+    
     hc: HealthCheck;
-
+    lbAlgo: ILbAlgorithm;
+    algoType: LbAlgorithm;
+    
     backendServers: IBackendServerDetails[];
     server: Server<typeof IncomingMessage, typeof ServerResponse>;
-
+    
     private PORT: number;
+    private backendServerUrls: string[];
     private reqAbortController: AbortController;
-    private healthyServers: Array<IBackendServerDetails>;
-    private backendServerUrls = [
-        'http://localhost:8081/',
-        'http://localhost:8082/',
-        'http://localhost:8083/',
-    ];
+    private healthyServers: IBackendServerDetails[];
 
     //
     //
@@ -55,23 +54,27 @@ export class LBServer implements ILBServer {
         port: number = 80,
         algo: LbAlgorithm,
     ) {
-        this.algoType = algo;
         this.PORT = port;
-       
+        this.algoType = algo;
         this.reqAbortController = new AbortController();
         this.healthyServers = new Array<IBackendServerDetails>();
         this.backendServers = new Array<IBackendServerDetails>();
 
-        this.backendServerUrls.forEach((url) => {
-            const beServer = new BackendServerDetails(url, this.reqAbortController);
+
+        this.backendServerUrls = CONFIG.be_servers.map((e) => e.domain);
+
+        CONFIG.be_servers.forEach((s) => {
+            const beServer = new BackendServerDetails(s.domain, this.reqAbortController, s.weight);
             this.backendServers.push(beServer);
         });
+
 
         this.lbAlgo = LbAlgorithmFactory.factory(algo, {
             curBEServerIdx: -1,
             allServers: this.backendServers,
             healthyServers: this.healthyServers
         });
+
 
         this.hc = new HealthCheck(this.backendServers, this.healthyServers);
 
@@ -106,8 +109,8 @@ export class LBServer implements ILBServer {
             try {
                 const response = await BEHttpClient.get(backendServer.url, {
                     "axios-retry": {
-                        retries: 3,
-                        retryDelay: (retryCount) => retryCount * 200,
+                        retries: CONFIG.be_retries,
+                        retryDelay: (retryCount) => retryCount * CONFIG.be_retry_delay,
                         onRetry: (retryCount, error, requestConfig) => {
                             // If connection establishment was refused
                             // Need to perform Health Check on that perticular server

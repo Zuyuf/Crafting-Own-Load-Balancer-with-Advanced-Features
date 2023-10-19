@@ -1,6 +1,8 @@
-
 import { BEPingHttpClient } from "./utils/http-client";
 import { BEServerHealth } from "./utils/enums";
+import { Config } from './utils/config';
+
+const CONFIG = Config.getConfig();
 
 //
 
@@ -69,7 +71,7 @@ export class BackendServerDetails implements IBackendServerDetails {
         this.serverWeight = serverWeight;
         this.totalRequestsServedCount = 0;
         this.reqAbortController = abortController;
-        this.pingUrl = url + 'ping';
+        this.pingUrl = url + CONFIG.be_ping_path;
         this.status = status ?? BEServerHealth.UNHEALTHY;
     }
 
@@ -110,7 +112,7 @@ export class BackendServerDetails implements IBackendServerDetails {
     }
 
     public async triggerBEFailureAlert() {
-        if (this.failStreak % 3 !== 0) return;
+        if (this.failStreak % CONFIG.alert_on_be_failure_streak !== 0) return;
         
         try {
             const response = await BEPingHttpClient.get(this.pingUrl);

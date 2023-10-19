@@ -1,20 +1,25 @@
 import axiosRetry from 'axios-retry';
 import axios from 'axios';
+import { Config } from './config';
+
+const CONFIG = Config.getConfig();
+
+//
 
 const BEPingHttpClient = axios.create();
 axiosRetry(BEPingHttpClient, {
-    retries: 3,
+    retries: CONFIG.be_ping_retries,
     retryDelay: (retryCount) => {
-        return retryCount * 500;
+        return retryCount * CONFIG.be_ping_retry_delay;
     },
 
 });
 
 const BEHttpClient = axios.create();
 axiosRetry(BEHttpClient, {
-    retries: 3,
+    retries: CONFIG.be_retries,
     retryDelay: (retryCount) => {
-        return retryCount * 200;
+        return retryCount * CONFIG.be_retry_delay;
     },
 
 });

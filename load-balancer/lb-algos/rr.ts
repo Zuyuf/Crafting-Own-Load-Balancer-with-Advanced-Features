@@ -21,6 +21,11 @@ export class RoundRobinLB implements ILbAlgorithm {
     //
 
     nextServer() {
+        if (this.healthyServers.length === 0) {
+            throw new Error('[ERROR] No Healthy Servers Found!!');
+        }
+
+
         this.curBEServerIdx = (this.curBEServerIdx + 1) % this.healthyServers.length;
         
         const server = this.healthyServers[this.curBEServerIdx % this.healthyServers.length];

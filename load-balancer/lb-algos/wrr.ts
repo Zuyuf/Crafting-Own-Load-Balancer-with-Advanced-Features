@@ -33,6 +33,11 @@ export class WeightedRoundRobinLB implements ILbAlgorithm {
         let server: IBackendServerDetails;
 
         while (true) {
+            if (this.healthyServers.length === 0) {
+                throw new Error('[ERROR] No Healthy Servers Found!!');
+            }
+
+
             this.curBEServerIdx = (this.curBEServerIdx + 1) % this.healthyServers.length;
             
             if (this.curBEServerIdx == 0) {

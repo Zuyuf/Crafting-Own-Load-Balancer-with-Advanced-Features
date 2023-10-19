@@ -1,7 +1,11 @@
 import { Mutex, MutexInterface } from 'async-mutex';
 import { IBackendServerDetails } from '../backend-server-details';
 import { BEServerHealth } from './enums';
+import { Config } from './config';
 
+const CONFIG = Config.getConfig();
+
+//
 
 export class HealthCheck {
     private healthCheckMutex: MutexInterface;
@@ -24,9 +28,7 @@ export class HealthCheck {
 
         this.clearHealthCheckTimer = setInterval(
             async () => await this.performHealthCheckOnAllServers(), 
-            
-            // TODO: Const
-            30 * 1000
+            CONFIG.health_check_interval
         );
     }
 

@@ -1,0 +1,25 @@
+{
+    "lbPORT": 80,
+    "lbAlgo": "rr",
+    "be_servers": [
+        {
+            "domain": "http://localhost:8081",
+            "weight": 1
+        },
+        {
+            "domain": "http://localhost:8082",
+            "weight": 5
+        },
+        {
+            "domain": "http://localhost:8083",
+            "weight": 3
+        }
+    ],
+    "be_retries": 3,
+    "be_retry_delay": 200,
+    "be_ping_path": "/ping",
+    "be_ping_retries": 3,
+    "be_ping_retry_delay": 500,
+    "health_check_interval": 30000,
+    "alert_on_be_failure_streak": 3
+}

@@ -21,6 +21,11 @@ export class RandomLB implements ILbAlgorithm {
     //
 
     nextServer() {
+        if (this.healthyServers.length === 0) {
+            throw new Error('[ERROR] No Healthy Servers Found!!');
+        }
+
+
         const randomDecimal = Math.random();
         const randomInRange = parseInt((0 + randomDecimal * this.healthyServers.length).toString());
 
