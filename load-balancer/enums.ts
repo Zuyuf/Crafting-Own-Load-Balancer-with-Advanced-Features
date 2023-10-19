@@ -1,5 +1,7 @@
 export enum LbAlgorithm {
-    ROUND_ROBIN
+    RANDOM,
+    ROUND_ROBIN,
+    WEIGHTED_ROUND_ROBIN,
 }
 
 export enum BEServerHealth {

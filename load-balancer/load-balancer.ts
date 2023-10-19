@@ -5,13 +5,16 @@ import { Mutex, MutexInterface } from 'async-mutex';
 
 import { BEServerHealth, LbAlgorithm } from "./enums";
 import { BackendServerDetails, IBackendServerDetails } from "./backend-server-details";
+import { ILbAlgorithm } from './lb-algos/lb-algo.interface';
+import { LbAlgorithms } from './lb-algos/lb-algos';
 
 //
 
 export interface ILBServer {
     server: Server<typeof IncomingMessage, typeof ServerResponse>;
 
-    algo: LbAlgorithm;
+    algoType: LbAlgorithm;
+    lbAlgo: ILbAlgorithm;
 
     backendServers: IBackendServerDetails[];
 
@@ -45,13 +48,13 @@ export interface ILBServer {
 }
 
 export class LBServer implements ILBServer {
-    algo: LbAlgorithm;
+    algoType: LbAlgorithm;
+    lbAlgo: ILbAlgorithm;
     backendServers: IBackendServerDetails[];
     healthCheckPeriodInSeconds: number;
     server: Server<typeof IncomingMessage, typeof ServerResponse>;
 
     private PORT: number;
-    private curBEServerIdx;
     private healthCheckMutex: MutexInterface;
     private reqAbortController: AbortController;
     private clearHealthCheckTimer?: NodeJS.Timeout;
@@ -70,9 +73,9 @@ export class LBServer implements ILBServer {
         algo: LbAlgorithm,
         healthCheckPeriodInSeconds: number
     ) {
-        this.algo = algo;
+        this.algoType = algo;
         this.PORT = port;
-        this.curBEServerIdx = -1;
+       
         this.healthCheckMutex = new Mutex();
         this.reqAbortController = new AbortController();
         this.healthyServers = new Array<IBackendServerDetails>();
@@ -82,6 +85,12 @@ export class LBServer implements ILBServer {
         this.backendServerUrls.forEach((url) => {
             const beServer = new BackendServerDetails(url, this.reqAbortController);
             this.backendServers.push(beServer);
+        });
+
+        this.lbAlgo = LbAlgorithms.factory(algo, {
+            curBEServerIdx: -1,
+            allServers: this.backendServers,
+            healthyServers: this.healthyServers
         });
 
         //
@@ -179,12 +188,8 @@ export class LBServer implements ILBServer {
    * based on the LoadBalancing algorithm for sending incoming requests.
    */
     private getBackendServer(): IBackendServerDetails {
-        switch (this.algo) {
-            case LbAlgorithm.ROUND_ROBIN:
-                const server = this.healthyServers[this.curBEServerIdx % this.healthyServers.length];
-                this.curBEServerIdx = (this.curBEServerIdx + 1) % this.healthyServers.length;
-                return server
-        }
+        const { server } = this.lbAlgo.nextServer();
+        return server;
     }
 
     //
