@@ -9,6 +9,7 @@ import { LbAlgorithmFactory } from './lb-algos/lb-algos';
 import { HealthCheck } from './utils/health-check';
 import { Config } from './utils/config';
 
+Config.validate();
 const CONFIG = Config.getConfig();
 
 //
@@ -50,12 +51,11 @@ export class LBServer implements ILBServer {
     //
     //
 
-    constructor(
-        port: number = 80,
-        algo: LbAlgorithm,
-    ) {
-        this.PORT = port;
-        this.algoType = algo;
+    constructor(port?: number) {
+        Config.validate();
+
+        this.PORT = port ?? CONFIG.lbPORT;
+        this.algoType = CONFIG.lbAlgo;
         this.reqAbortController = new AbortController();
         this.healthyServers = new Array<IBackendServerDetails>();
         this.backendServers = new Array<IBackendServerDetails>();
@@ -69,7 +69,7 @@ export class LBServer implements ILBServer {
         });
 
 
-        this.lbAlgo = LbAlgorithmFactory.factory(algo, {
+        this.lbAlgo = LbAlgorithmFactory.factory(this.algoType, {
             curBEServerIdx: -1,
             allServers: this.backendServers,
             healthyServers: this.healthyServers

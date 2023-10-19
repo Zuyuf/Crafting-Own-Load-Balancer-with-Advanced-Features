@@ -115,7 +115,7 @@ export class BackendServerDetails implements IBackendServerDetails {
         if (this.failStreak % CONFIG.alert_on_be_failure_streak !== 0) return;
         
         try {
-            const response = await BEPingHttpClient.get(this.pingUrl);
+            const response = await BEPingHttpClient.get(CONFIG.send_alert_webhook);
 
             return response.status;
         }

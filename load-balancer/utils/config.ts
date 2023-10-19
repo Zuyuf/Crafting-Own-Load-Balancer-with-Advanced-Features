@@ -25,6 +25,7 @@ interface IConfig {
 
     health_check_interval: number;
 
+    send_alert_webhook: string;
     alert_on_be_failure_streak: number;
 }
 
@@ -51,9 +52,10 @@ const config_joi_schema = Joi.object({
     be_ping_path: Joi.string().required(),
     be_ping_retries: Joi.number().min(0).max(config.be_servers.length),
     be_ping_retry_delay: Joi.number().min(0).max(10000),
-
+    
     health_check_interval: Joi.number().min(10* 1000).max(300 * 1000),
-
+    
+    send_alert_webhook: Joi.string().required(),
     alert_on_be_failure_streak: Joi.number().min(3).max(100),
 })
 
@@ -62,6 +64,7 @@ const config_joi_schema = Joi.object({
 export class Config {
 
     static getConfig() {
+        config.lbPORT = config.lbPORT ?? 80;
         config.lbAlgo = Config.configAlgoTypeToLbAlgorithm(config._lbAlgo);
 
         config.be_retries = config.be_retries ?? 3;
