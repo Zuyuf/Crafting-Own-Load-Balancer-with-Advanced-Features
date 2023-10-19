@@ -1,6 +1,6 @@
 import { ILBAlgorithmParams, ILbAlgorithm } from "./lb-algo.interface";
 import { IBackendServerDetails } from "../backend-server-details";
-import { LbAlgorithm } from "../enums";
+import { LbAlgorithm } from "../utils/enums";
 
 export class WeightedRoundRobinLB implements ILbAlgorithm {
 

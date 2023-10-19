@@ -1,4 +1,4 @@
-import { LbAlgorithm } from './load-balancer/enums';
+import { LbAlgorithm } from './load-balancer/utils/enums';
 import { LBServer } from './load-balancer/load-balancer';
 
 try {

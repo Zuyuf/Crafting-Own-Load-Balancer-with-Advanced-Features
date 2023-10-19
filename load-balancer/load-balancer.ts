@@ -1,12 +1,12 @@
 import express from 'express';
-import { BEHttpClient, BEPingHttpClient } from "./http-client";
+import { BEHttpClient, BEPingHttpClient } from "./utils/http-client";
 import { Server, IncomingMessage, ServerResponse } from "http";
 import { Mutex, MutexInterface } from 'async-mutex';
 
-import { BEServerHealth, LbAlgorithm } from "./enums";
+import { BEServerHealth, LbAlgorithm } from "./utils/enums";
 import { BackendServerDetails, IBackendServerDetails } from "./backend-server-details";
 import { ILbAlgorithm } from './lb-algos/lb-algo.interface';
-import { LbAlgorithms } from './lb-algos/lb-algos';
+import { LbAlgorithmFactory } from './lb-algos/lb-algos';
 
 //
 
@@ -87,7 +87,7 @@ export class LBServer implements ILBServer {
             this.backendServers.push(beServer);
         });
 
-        this.lbAlgo = LbAlgorithms.factory(algo, {
+        this.lbAlgo = LbAlgorithmFactory.factory(algo, {
             curBEServerIdx: -1,
             allServers: this.backendServers,
             healthyServers: this.healthyServers

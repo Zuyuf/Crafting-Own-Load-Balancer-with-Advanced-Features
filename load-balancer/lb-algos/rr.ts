@@ -1,5 +1,5 @@
 import { IBackendServerDetails } from "../backend-server-details";
-import { LbAlgorithm } from "../enums";
+import { LbAlgorithm } from "../utils/enums";
 import { ILBAlgorithmParams, ILbAlgorithm } from "./lb-algo.interface";
 
 //

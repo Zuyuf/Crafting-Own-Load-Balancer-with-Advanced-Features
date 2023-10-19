@@ -1,12 +1,12 @@
 import { IBackendServerDetails } from "../backend-server-details";
-import { LbAlgorithm } from "../enums";
+import { LbAlgorithm } from "../utils/enums";
 import { ILBAlgorithmParams, ILbAlgorithm } from "./lb-algo.interface";
 import { RandomLB } from "./random";
 import { RoundRobinLB } from "./rr";
 import { WeightedRoundRobinLB } from "./wrr";
 
 
-export class LbAlgorithms {
+export class LbAlgorithmFactory {
 
     static factory(algoType: LbAlgorithm, params: ILBAlgorithmParams): ILbAlgorithm {
         switch (algoType) {

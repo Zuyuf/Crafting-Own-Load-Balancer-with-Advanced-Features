@@ -1,6 +1,6 @@
 
-import { BEPingHttpClient } from "./http-client";
-import { BEServerHealth } from "./enums";
+import { BEPingHttpClient } from "./utils/http-client";
+import { BEServerHealth } from "./utils/enums";
 
 //
 
