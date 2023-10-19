@@ -27,12 +27,14 @@ interface IConfig {
 
     send_alert_webhook: string;
     alert_on_be_failure_streak: number;
+    alert_on_all_be_failure_streak: number;
 }
 
 
 const config_joi_schema = Joi.object({
     lbPORT: Joi.number().required(),
 
+    lbAlgo: Joi.string().optional(),
     _lbAlgo: Joi.string().valid('rand', 'rr', 'wrr').required(),
 
     be_servers: Joi.array().min(1)
@@ -57,6 +59,7 @@ const config_joi_schema = Joi.object({
     
     send_alert_webhook: Joi.string().required(),
     alert_on_be_failure_streak: Joi.number().min(3).max(100),
+    alert_on_all_be_failure_streak: Joi.number().min(1).max(100),
 })
 
 
@@ -77,6 +80,7 @@ export class Config {
         config.health_check_interval = config.health_check_interval ?? 30 * 1000;
         
         config.alert_on_be_failure_streak = config.alert_on_be_failure_streak ?? 3;
+        config.alert_on_all_be_failure_streak = config.alert_on_all_be_failure_streak ?? 3;
         
         //
         
@@ -90,6 +94,7 @@ export class Config {
             throw new Error(`[ConfigError] ${validation.error.details[0].message}`)
         }
 
+        console.log('[Success] Validated Config');
         return true;
     }
 

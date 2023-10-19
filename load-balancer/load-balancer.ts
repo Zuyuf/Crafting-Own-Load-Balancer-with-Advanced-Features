@@ -52,7 +52,7 @@ export class LBServer implements ILBServer {
     //
 
     constructor(port?: number) {
-        Config.validate();
+        // Config.validate();
 
         this.PORT = port ?? CONFIG.lbPORT;
         this.algoType = CONFIG.lbAlgo;
@@ -107,11 +107,15 @@ export class LBServer implements ILBServer {
             }
 
             try {
+                console.log(`\t[BEStart]  -  ${backendServer.url}`);
+
                 const response = await BEHttpClient.get(backendServer.url, {
                     "axios-retry": {
                         retries: CONFIG.be_retries,
                         retryDelay: (retryCount) => retryCount * CONFIG.be_retry_delay,
                         onRetry: (retryCount, error, requestConfig) => {
+                            console.log(`\t\t\t[BERetry]  -  retrying after delay ${backendServer.url}`);
+
                             // If connection establishment was refused
                             // Need to perform Health Check on that perticular server
                             // this could happen due BE Server being overloaded / is down
@@ -125,10 +129,13 @@ export class LBServer implements ILBServer {
                     }
                 });
 
+                console.log(`\t[BESuccess]  -  ${backendServer.url}`);
+
                 backendServer.incrementRequestsServedCount();
                 return res.status(200).send(response.data);
             }
             catch (error) {
+                console.log(`\t[BEError]  -  ${backendServer.url}`);
                 console.error(error);
                 res.sendStatus(500);
                 return;
@@ -164,7 +171,7 @@ export class LBServer implements ILBServer {
                 server.url,
                 server.totalRequestsServedCount,
                 server.requestsServedCount,
-                BEServerHealth[server.getStatus()]
+                server.getStatus()
             ]);
         });
 

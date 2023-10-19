@@ -13,11 +13,6 @@ export interface IBackendServerDetails {
     reqAbortController: AbortController;
     
     /**
-     * the streak of Server being assigned a status as UnHealthy
-     */
-    failStreak: number;
-
-    /**
      * used for weighted round robin
      */
     serverWeight: number;
@@ -52,9 +47,9 @@ export class BackendServerDetails implements IBackendServerDetails {
     reqAbortController: AbortController;
     
     pingUrl: string;
-    failStreak: number;
     serverWeight: number;
-    status: BEServerHealth;
+    private failStreak: number;
+    private status: BEServerHealth;
 
     //
     //
@@ -81,8 +76,12 @@ export class BackendServerDetails implements IBackendServerDetails {
         if (status === BEServerHealth.UNHEALTHY) {
             this.failStreak++;
             this.triggerBEFailureAlert();
+            console.log(`\t[Logger] setStatus UNHEALTHY - ${this.url} - ${this.failStreak}`);
         }
-        else this.failStreak = 0;
+        else {
+            this.failStreak = 0;
+            console.log(`\t[Logger] setStatus HEALTHY - ${this.url}`);
+        }
 
         this.status = status;
     }
@@ -99,28 +98,41 @@ export class BackendServerDetails implements IBackendServerDetails {
      * It performs Retries in Exponential Delay.
      */
     public async ping(): Promise<number> {
+        console.log(`\t\t[PingStart]  -  ${this.url}`);
+
         try {
             const response = await BEPingHttpClient.get(this.pingUrl, {
                 signal: this.reqAbortController.signal
             });
 
+            console.log(`\t\t[PingSuccess]  -  Pinging ${this.url}`);
+
             return response.status;
         }
         catch (error) {
+            console.log(`\t\t[PingError]  -  ${this.url}`);
             return 500;
         }
     }
 
     public async triggerBEFailureAlert() {
         if (this.failStreak % CONFIG.alert_on_be_failure_streak !== 0) return;
+        console.log(`\t\t[Logger] triggerBEFailureAlert - ${this.url}`);
         
         try {
-            const response = await BEPingHttpClient.get(CONFIG.send_alert_webhook);
+            const response = await BEPingHttpClient.post(CONFIG.send_alert_webhook, {
+                be_domain: this.url,
+                type: 'BE_DOWN',
+                status: this.status,
+                failStreak: this.failStreak,
+                requestsServedCount: this.requestsServedCount,
+                totalRequestsServedCount: this.totalRequestsServedCount,
+            });
 
             return response.status;
         }
         catch (error) {
-            console.log(`[IMPORTANT] Not able to trigger BEFailureAlert`)
+            console.log(`\t\t[Logger] Not able to trigger BEFailureAlert`)
             return;
         }
     }

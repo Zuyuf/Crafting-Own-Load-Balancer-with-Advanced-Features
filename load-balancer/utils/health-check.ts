@@ -2,6 +2,7 @@ import { Mutex, MutexInterface } from 'async-mutex';
 import { IBackendServerDetails } from '../backend-server-details';
 import { BEServerHealth } from './enums';
 import { Config } from './config';
+import { BEPingHttpClient } from './http-client';
 
 const CONFIG = Config.getConfig();
 
@@ -12,6 +13,7 @@ export class HealthCheck {
     private allServers: IBackendServerDetails[];
     private healthyServers: IBackendServerDetails[];
     private clearHealthCheckTimer?: NodeJS.Timeout;
+    private failStreak: number;
 
     //
 
@@ -19,6 +21,7 @@ export class HealthCheck {
        this.healthCheckMutex = new Mutex();
         this.allServers = allServers;
         this.healthyServers = healthyServers;
+        this.failStreak = 0;
     }
 
     //
@@ -61,6 +64,14 @@ export class HealthCheck {
                 this.performHealthCheck(this.allServers[i], true, pingResults[i]);
             }
 
+
+            if (this.healthyServers.length === 0) {
+                this.failStreak++;
+                this.triggerAllBEFailureAlert();
+            }
+            else this.failStreak = 0;
+
+
             console.log(`Completed Health Check at ${new Date().toString()}. Total Backend Servers online: ${this.healthyServers.length}`);
         }
         catch (error) {
@@ -85,10 +96,10 @@ export class HealthCheck {
         try  {
             // Wait for tasks to complete
             const _pingResult = pingResult ?? await BEServer.ping();
-            const oldStatus = BEServer.getStatus();
+            // const oldStatus = BEServer.getStatus();
 
-            if (_pingResult === 200 && oldStatus === BEServerHealth.UNHEALTHY) {
-                BEServer.setStatus(BEServerHealth.HEALTHY);
+            if (_pingResult === 200) {
+                    BEServer.setStatus(BEServerHealth.HEALTHY);
                 
                 const serverIdx = this.healthyServers
                     .map((server) => server.url)
@@ -97,11 +108,19 @@ export class HealthCheck {
                 if (serverIdx < 0) {
                     BEServer.resetRequestsServedCount();
                     this.healthyServers.push(BEServer);
+
+                    // sort the array so that its easier/predictable to work on
+                    this.healthyServers.sort((s1, s2) => {
+                        if (s1.serverWeight) {
+                            return s1.serverWeight - s2.serverWeight;
+                        }
+                        else return s1.url < s2.url ? -1 : s1.url > s2.url ? 1 : 0;
+                    });
                 }
             }
             //
             // Server is UnHealthy
-            else if (_pingResult !== 200 && oldStatus === BEServerHealth.HEALTHY) {
+            else if (_pingResult !== 200) {
                 BEServer.setStatus(BEServerHealth.UNHEALTHY);
 
                 const serverIdx = this.healthyServers
@@ -121,6 +140,24 @@ export class HealthCheck {
         }
         finally {
             if (healthCheckMutexRelease) healthCheckMutexRelease();
+        }
+    }
+
+    public async triggerAllBEFailureAlert() {
+        if (this.failStreak % CONFIG.alert_on_all_be_failure_streak !== 0) return;
+        console.log(`\t\t[Logger] triggerAllBEFailureAlert`);
+        
+        try {
+            const response = await BEPingHttpClient.post(CONFIG.send_alert_webhook, {
+                type: 'ALL_BE_DOWN',
+                failStreak: this.failStreak
+            });
+
+            return response.status;
+        }
+        catch (error) {
+            console.log(`\t\t[Logger] Not able to triggerAllBEFailureAlert`)
+            return;
         }
     }
 

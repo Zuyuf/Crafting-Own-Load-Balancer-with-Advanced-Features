@@ -1,10 +1,10 @@
 export enum LbAlgorithm {
-    RANDOM,
-    ROUND_ROBIN,
-    WEIGHTED_ROUND_ROBIN,
+    RANDOM = 'rand',
+    ROUND_ROBIN = 'rr',
+    WEIGHTED_ROUND_ROBIN = 'wrr',
 }
 
 export enum BEServerHealth {
-    UNHEALTHY,
-    HEALTHY
+    UNHEALTHY = 'un_healthy',
+    HEALTHY = 'healthy'
 }

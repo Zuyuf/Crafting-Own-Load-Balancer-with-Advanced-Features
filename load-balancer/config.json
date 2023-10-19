@@ -1,6 +1,6 @@
 {
     "lbPORT": 80,
-    "lbAlgo": "rr",
+    "_lbAlgo": "rand",
     "be_servers": [
         {
             "domain": "http://localhost:8081",
@@ -21,6 +21,7 @@
     "be_ping_retries": 3,
     "be_ping_retry_delay": 500,
     "health_check_interval": 30000,
-    "send_alert_webhook": "https://typedwebhook.tools/webhook/573f8e61-66b1-41e4-970d-f984d6240a4c",
-    "alert_on_be_failure_streak": 3
+    "send_alert_webhook": "https://typedwebhook.tools/webhook/7490a301-8844-47e8-affb-b1edaff7f0e6",
+    "alert_on_be_failure_streak": 3,
+    "alert_on_all_be_failure_streak": 3
 }
