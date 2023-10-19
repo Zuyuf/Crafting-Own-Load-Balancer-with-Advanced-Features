@@ -1,12 +1,12 @@
 import express from 'express';
-import { BEHttpClient, BEPingHttpClient } from "./utils/http-client";
+import { BEHttpClient } from "./utils/http-client";
 import { Server, IncomingMessage, ServerResponse } from "http";
-import { Mutex, MutexInterface } from 'async-mutex';
 
 import { BEServerHealth, LbAlgorithm } from "./utils/enums";
 import { BackendServerDetails, IBackendServerDetails } from "./backend-server-details";
 import { ILbAlgorithm } from './lb-algos/lb-algo.interface';
 import { LbAlgorithmFactory } from './lb-algos/lb-algos';
+import { HealthCheck } from './utils/health-check';
 
 //
 
@@ -16,48 +16,31 @@ export interface ILBServer {
     algoType: LbAlgorithm;
     lbAlgo: ILbAlgorithm;
 
+    hc: HealthCheck;
     backendServers: IBackendServerDetails[];
-
-    healthCheckPeriodInSeconds: number;
 
     /**
      * Returns HTTP Server to Express app
      */
-    getServer(): Server<typeof IncomingMessage, typeof ServerResponse>;
+    getLBServer(): Server<typeof IncomingMessage, typeof ServerResponse>;
 
     /**
      * Closes Express Server & returns Server Objecct
      */
-    close(): Server<typeof IncomingMessage, typeof ServerResponse>;
-
-
-    /**
-     * Starts Asynchronous check
-     */
-    startHealthCheck(): void;
-
-    /**
-     * Stops health check
-     */
-    stopHealthCheck(): void;
-
-    /**
-     * peforms health check for all BE Servers
-     */
-    performHealthCheckOnAllServers(): Promise<void>;
+    close(): Server<typeof IncomingMessage, typeof ServerResponse>
 }
 
 export class LBServer implements ILBServer {
     algoType: LbAlgorithm;
     lbAlgo: ILbAlgorithm;
+
+    hc: HealthCheck;
+
     backendServers: IBackendServerDetails[];
-    healthCheckPeriodInSeconds: number;
     server: Server<typeof IncomingMessage, typeof ServerResponse>;
 
     private PORT: number;
-    private healthCheckMutex: MutexInterface;
     private reqAbortController: AbortController;
-    private clearHealthCheckTimer?: NodeJS.Timeout;
     private healthyServers: Array<IBackendServerDetails>;
     private backendServerUrls = [
         'http://localhost:8081/',
@@ -71,16 +54,13 @@ export class LBServer implements ILBServer {
     constructor(
         port: number = 80,
         algo: LbAlgorithm,
-        healthCheckPeriodInSeconds: number
     ) {
         this.algoType = algo;
         this.PORT = port;
        
-        this.healthCheckMutex = new Mutex();
         this.reqAbortController = new AbortController();
         this.healthyServers = new Array<IBackendServerDetails>();
         this.backendServers = new Array<IBackendServerDetails>();
-        this.healthCheckPeriodInSeconds = healthCheckPeriodInSeconds;
 
         this.backendServerUrls.forEach((url) => {
             const beServer = new BackendServerDetails(url, this.reqAbortController);
@@ -93,6 +73,8 @@ export class LBServer implements ILBServer {
             healthyServers: this.healthyServers
         });
 
+        this.hc = new HealthCheck(this.backendServers, this.healthyServers);
+
         //
 
         const app = this.createExpressApp();
@@ -101,8 +83,8 @@ export class LBServer implements ILBServer {
                 console.log('LB Server listening on port ' + this.PORT);
             });
 
-        this.performHealthCheckOnAllServers();
-        this.startHealthCheck();
+        this.hc.performHealthCheckOnAllServers();
+        this.hc.startHealthCheck();
     }
 
     //
@@ -130,7 +112,7 @@ export class LBServer implements ILBServer {
                             // If connection establishment was refused
                             // Need to perform Health Check on that perticular server
                             // this could happen due BE Server being overloaded / is down
-                            if (error.code === 'ECONNREFUSED') this.performHealthCheck(backendServer);
+                            if (error.code === 'ECONNREFUSED') this.hc.performHealthCheck(backendServer);
                             else console.log(`${backendServer.url} - retryCount=${retryCount} - error=${error}`);
 
                             // get another server & make retry request to that server
@@ -153,12 +135,13 @@ export class LBServer implements ILBServer {
         return app;
     }
 
-    public getServer(): Server<typeof IncomingMessage, typeof ServerResponse> {
+
+    public getLBServer(): Server<typeof IncomingMessage, typeof ServerResponse> {
         return this.server;
     }
 
     public close(): Server<typeof IncomingMessage, typeof ServerResponse> {
-        this.stopHealthCheck();
+        this.hc.stopHealthCheck();
         this.reqAbortController.abort();
 
         const server = this.server.close();
@@ -169,12 +152,14 @@ export class LBServer implements ILBServer {
         return server;
     }
 
+
     private printBackendStats(): void {
-        const stats: [string, number, string][] = [];
+        const stats: [string, number, number, string][] = [];
 
         this.backendServers.forEach((server) => {
             stats.push([
                 server.url,
+                server.totalRequestsServedCount,
                 server.requestsServedCount,
                 BEServerHealth[server.getStatus()]
             ]);
@@ -183,6 +168,7 @@ export class LBServer implements ILBServer {
         console.log(`Backend Stats: \n${stats}`);
     }
 
+    
     /**
    * This is the BackendServer Assignment function that returns the Backend Server Instance.
    * based on the LoadBalancing algorithm for sending incoming requests.
@@ -190,103 +176,5 @@ export class LBServer implements ILBServer {
     private getBackendServer(): IBackendServerDetails {
         const { server } = this.lbAlgo.nextServer();
         return server;
-    }
-
-    //
-    // Health Checks Functions
-    // 
-
-    public startHealthCheck(): void {
-        this.clearHealthCheckTimer = setInterval(
-            async () => await this.performHealthCheckOnAllServers(), 
-            this.healthCheckPeriodInSeconds * 1000
-        );
-    }
-
-    public stopHealthCheck(): void {
-        clearInterval(this.clearHealthCheckTimer);
-    }
-
-    public async performHealthCheckOnAllServers(): Promise<void> {
-        // Mutex is required bcuz there are 2 HealthChecks 
-        //      1. HealthChecks on All Servers on PreDefined Interval
-        //      2. HealthCheck on specific Server, When a Server Refuses to establish connecction
-        // So both HealthChecks can run at the same time & may result in issues.
-
-        const healthCheckMutexRelease = await this.healthCheckMutex.acquire();
-
-        try {
-            const pingTasks: any = [];
-
-            for (let i = 0; i < this.backendServers.length; i++) {
-                pingTasks.push(this.backendServers[i].ping());
-            }
-
-            const pingResults = await Promise.all(pingTasks);
-
-            for (let i = 0; i < pingResults.length; i++) {
-                this.performHealthCheck(this.backendServers[i], true, pingResults[i]);
-            }
-
-            console.log(`Completed Health Check at ${new Date().toString()}. Total Backend Servers online: ${this.healthyServers.length}`);
-        }
-        catch (error) {
-            console.log(`Failed to performHealthCheckOnAllServers due to: ${(error as any)?.message}`);
-            console.log(error);
-        }
-        finally {
-            healthCheckMutexRelease();
-        }
-    }
-
-    private async performHealthCheck(BEServer: IBackendServerDetails, hasAcquiredLock = false, pingResult?: number) {
-        // Mutex is required bcuz there are 2 HealthChecks 
-        //      1. HealthChecks on All Servers on PreDefined Interval
-        //      2. HealthCheck on specific Server, When a Server Refuses to establish connecction
-        // So both HealthChecks can run at the same time & may result in issues.
-
-        let healthCheckMutexRelease: MutexInterface.Releaser | undefined;
-        if (!hasAcquiredLock) healthCheckMutexRelease = await this.healthCheckMutex.acquire();
-
-        try  {
-            // Wait for tasks to complete
-            const _pingResult = pingResult ?? await BEServer.ping();
-            const oldStatus = BEServer.getStatus();
-
-            if (_pingResult === 200 && oldStatus === BEServerHealth.UNHEALTHY) {
-                BEServer.setStatus(BEServerHealth.HEALTHY);
-                
-                const serverIdx = this.healthyServers
-                    .map((server) => server.url)
-                    .indexOf(BEServer.url);
-                
-                if (serverIdx < 0) {
-                    BEServer.resetRequestsServedCount();
-                    this.healthyServers.push(BEServer);
-                }
-            }
-            //
-            // Server is UnHealthy
-            else if (_pingResult !== 200 && oldStatus === BEServerHealth.HEALTHY) {
-                BEServer.setStatus(BEServerHealth.UNHEALTHY);
-
-                const serverIdx = this.healthyServers
-                    .map((server) => server.url)
-                    .indexOf(BEServer.url);
-
-                if (serverIdx >= 0) {
-                    this.healthyServers.splice(serverIdx, 1);
-                }
-            }
-
-            if (healthCheckMutexRelease) console.log(`performHealthCheck [${BEServer.url}]: health=${BEServer.getStatus()}`);
-        }
-        catch (error) {
-            console.log(`Failed to performHealthCheckOnAllServers due to: ${(error as any)?.message}`);
-            console.log(error);
-        }
-        finally {
-            if (healthCheckMutexRelease) healthCheckMutexRelease();
-        }
     }
 }
