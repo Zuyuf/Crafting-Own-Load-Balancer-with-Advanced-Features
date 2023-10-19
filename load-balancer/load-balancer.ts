@@ -86,6 +86,24 @@ export class LBServer implements ILBServer {
                 console.log('LB Server listening on port ' + this.PORT);
             });
 
+
+        this.server.on('error', (err: Error) => {
+            console.log('[GlobalErrorEvent] => Server on "error" event triggered');
+            console.error(err);
+            // this.close();
+        });
+
+        this.server.on('close', () => {
+            console.log('[GlobalCloseEvent] => Server on "close" event triggered');
+            // this.close();
+        });
+
+        // process.on('SIGTERM', () => {
+        //     console.info('SIGTERM signal received.');
+        //     this.close();
+        // })
+
+
         this.hc.performHealthCheckOnAllServers();
         this.hc.startHealthCheck();
     }
@@ -165,18 +183,22 @@ export class LBServer implements ILBServer {
 
 
     private printBackendStats(): void {
-        const stats: [string, number, number, string][] = [];
+        const stats: any[] = [];
 
+        console.log('Backend Stats: ');
         this.backendServers.forEach((server) => {
-            stats.push([
+            const stat = [
                 server.url,
                 server.totalRequestsServedCount,
                 server.requestsServedCount,
                 server.getStatus()
-            ]);
+            ];
+
+            stats.push(stat);
+            console.log(stat);
         });
 
-        console.log(`Backend Stats: \n${stats}`);
+        // console.log(`\n\nBackend Stats: \n${stats}`);
     }
 
     
