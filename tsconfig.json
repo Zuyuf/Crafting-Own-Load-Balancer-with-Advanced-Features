@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json.schemastore.org/tsconfig",
+    "compilerOptions": {
+        "target": "es2020",
+        "module": "commonjs",
+        "outDir": "./dist",
+        "strict": true,
+        "esModuleInterop": true,
+        "lib": ["es2020"],
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "inlineSourceMap": true,
+        "strictNullChecks": true,
+        "noFallthroughCasesInSwitch": true,
+        "noImplicitAny": true,
+        "noImplicitReturns": true,
+        "noImplicitThis": true,
+        "allowUnreachableCode": false,
+        "alwaysStrict": true,
+        "resolveJsonModule": true
+    },
+    "exclude": ["node_modules", "tests"]
+}

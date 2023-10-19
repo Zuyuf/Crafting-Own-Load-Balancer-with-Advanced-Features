@@ -1,0 +1,28 @@
+{
+    "root": true,
+    "env": {
+        "node": true
+    },
+    "parser": "@typescript-eslint/parser",
+    "plugins": [
+        "@typescript-eslint"
+    ],
+    //
+    //
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended",
+        "plugin:@typescript-eslint/eslint-recommended"
+    ],
+    "parserOptions": { "ecmaVersion": 2018, "sourceType": "module" },
+    //
+    //
+    "rules": {
+        "no-console": "error",
+        "@typescript-eslint/no-unused-vars": [
+            "warn",
+            { "argsIgnorePattern": "next|req|res" }
+        ],
+        "@typescript-eslint/no-non-null-assertion": "off"
+    }
+}
