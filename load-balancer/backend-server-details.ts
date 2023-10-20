@@ -122,22 +122,22 @@ export class BackendServerDetails implements IBackendServerDetails {
 
     public async triggerBEFailureAlert() {
         if (this.failStreak % CONFIG.alert_on_be_failure_streak !== 0) return;
-
-        const didHeal = await HealthCheck.selfHealBEServer(this);
-        if (didHeal) {
-            this.selfHealAttempts = 0;
-            return;
-        };
         
         console.log(`\t[Logger] triggerBEFailureAlert - ${this.url}`);
+
+        //
+
+        const didHeal = await HealthCheck.selfHealBEServer(this);
+        if (didHeal) this.selfHealAttempts = 0;
         
         try {
             const response = await BEPingHttpClient.post(CONFIG.send_alert_webhook, {
                 be_domain: this.url,
                 type: 'BE_DOWN',
                 status: this.status,
+                healingStatus: didHeal,
                 failStreak: this.failStreak,
-                selfHealAttempts: this.selfHealAttempts,
+                selfHealAttempts: didHeal ? this.selfHealAttempts + 1 : this.selfHealAttempts,
                 requestsServedCount: this.requestsServedCount,
                 totalRequestsServedCount: this.totalRequestsServedCount,
             });

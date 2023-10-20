@@ -1,5 +1,5 @@
 import Joi from 'joi';
-import _config from '../config.json';
+import _config from '../../config.json';
 import { LbAlgorithm } from './enums';
 
 const config = _config as unknown as IConfig;
@@ -28,6 +28,9 @@ interface IConfig {
     send_alert_webhook: string;
     alert_on_be_failure_streak: number;
     alert_on_all_be_failure_streak: number;
+
+    enableSelfHealing: boolean;
+    _test_only_chances_of_healing_server: number;
 }
 
 
@@ -60,6 +63,9 @@ const config_joi_schema = Joi.object({
     send_alert_webhook: Joi.string().required(),
     alert_on_be_failure_streak: Joi.number().min(3).max(100),
     alert_on_all_be_failure_streak: Joi.number().min(1).max(100),
+
+    enableSelfHealing: Joi.bool().required(),
+    _test_only_chances_of_healing_server: Joi.number().min(0.1).max(1).optional()
 })
 
 
@@ -81,6 +87,9 @@ export class Config {
         
         config.alert_on_be_failure_streak = config.alert_on_be_failure_streak ?? 3;
         config.alert_on_all_be_failure_streak = config.alert_on_all_be_failure_streak ?? 3;
+
+        config.enableSelfHealing = config.enableSelfHealing ?? true;
+        config._test_only_chances_of_healing_server = config._test_only_chances_of_healing_server ?? 0.5;
         
         //
         

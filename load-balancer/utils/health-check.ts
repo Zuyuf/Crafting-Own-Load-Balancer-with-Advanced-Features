@@ -1,11 +1,10 @@
-import { Mutex, MutexInterface } from 'async-mutex';
-import { IBackendServerDetails } from '../backend-server-details';
-import { BEServerHealth } from './enums';
-import { Config } from './config';
-import { BEPingHttpClient } from './http-client';
-import cmd from 'node-run-cmd';
-import { exec } from "child_process";
 import { ExecCMD } from './exec-cmd';
+import { Mutex, MutexInterface } from 'async-mutex';
+
+import { Config } from './config';
+import { BEServerHealth } from './enums';
+import { BEPingHttpClient } from './http-client';
+import { IBackendServerDetails } from '../backend-server-details';
 
 const CONFIG = Config.getConfig();
 
@@ -169,9 +168,21 @@ export class HealthCheck {
      */
     public static async selfHealBEServer(server: IBackendServerDetails) {
         console.log(`\t[Logger] selfHealBEServer - ${server.url}`);
+        server.selfHealAttempts++;
 
+        if (!CONFIG.enableSelfHealing) return false;
+
+        //
+        // This is just to simulate randomness of Server being SelfHeealed
+        const randomShouldHeal = CONFIG._test_only_chances_of_healing_server === 0 
+            ? true
+            : HealthCheck.generateRandomBoolean();
+
+        if (!randomShouldHeal) return false;
+
+        //
+        
         try {
-            server.selfHealAttempts++;
             const port = server.url.substring(server.url.lastIndexOf(':') + 1);
             await ExecCMD(`cd ${global.__appBaseDir} && npx ts-node be.index.ts ${port}`);
             
@@ -182,6 +193,19 @@ export class HealthCheck {
             return false;
         }
     }
+
+    private static generateRandomBoolean(likelihoodOfTrue: number = CONFIG._test_only_chances_of_healing_server): boolean {
+        // Ensure that the likelihood is within the valid range (0-100%)
+        if (likelihoodOfTrue < 0 || likelihoodOfTrue > 1) {
+          throw new Error('Likelihood must be between 0 and 100.');
+        }
+      
+        // Generate a random number between 0 and 1
+        const randomValue = Math.random();
+      
+        // If the random number is less than the likelihood, return true, otherwise return false
+        return randomValue < likelihoodOfTrue;
+      }
 
 }
 

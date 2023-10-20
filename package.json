@@ -6,9 +6,9 @@
     "scripts": {
         "compile": "tsc",
         "start": "SET PORT=80 && node load-balancer.js",
-        "dev:lb": "npx ts-node --files lb.index.ts 80",
+        "dev:lb": "npx ts-node --files lb.index.ts",
         "dev:be": "npx ts-node be.index.ts",
-        "start:lb": "node ./dist/lb.index.js 8000",
+        "start:lb": "node ./dist/lb.index.js",
         "start:be": "node ./dist/be.index.js"
     },
     "repository": {

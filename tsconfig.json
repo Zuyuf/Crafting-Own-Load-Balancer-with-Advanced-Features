@@ -19,6 +19,6 @@
         "alwaysStrict": true,
         "resolveJsonModule": true
     },
-    "include": ["./index.d.ts", "./declarations.d.ts"],
+    "include": ["types/index.d.ts", "types/declarations.d.ts"],
     "exclude": ["node_modules", "tests"]
 }
