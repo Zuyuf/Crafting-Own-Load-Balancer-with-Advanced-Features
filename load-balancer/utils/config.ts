@@ -51,18 +51,18 @@ const config_joi_schema = Joi.object({
             })
         })),
     
-    be_retries: Joi.number().min(0).max(config.be_servers.length),
-    be_retry_delay: Joi.number().min(0).max(10000),
+    be_retries: Joi.number().min(0).max(config.be_servers.length).optional(),
+    be_retry_delay: Joi.number().min(0).max(10000).optional(),
     
     be_ping_path: Joi.string().required(),
-    be_ping_retries: Joi.number().min(0).max(config.be_servers.length),
-    be_ping_retry_delay: Joi.number().min(0).max(10000),
+    be_ping_retries: Joi.number().min(0).max(config.be_servers.length).optional(),
+    be_ping_retry_delay: Joi.number().min(0).max(10000).optional(),
     
-    health_check_interval: Joi.number().min(10* 1000).max(300 * 1000),
+    health_check_interval: Joi.number().min(10* 1000).max(300 * 1000).optional(),
     
     send_alert_webhook: Joi.string().required(),
-    alert_on_be_failure_streak: Joi.number().min(3).max(100),
-    alert_on_all_be_failure_streak: Joi.number().min(1).max(100),
+    alert_on_be_failure_streak: Joi.number().min(3).max(100).optional(),
+    alert_on_all_be_failure_streak: Joi.number().min(1).max(100).optional(),
 
     enableSelfHealing: Joi.bool().required(),
     _test_only_chances_of_healing_server: Joi.number().min(0.1).max(1).optional()
